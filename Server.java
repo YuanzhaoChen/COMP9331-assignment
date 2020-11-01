@@ -6,7 +6,8 @@ import java.util.concurrent.locks.*;
 
 public class Server extends Thread{
     static Map<String,String> credentialsMap = new HashMap<>(); // Map<user_name,password>
-    protected static Set<String> loggedInUsers = new HashSet<>(); //record user that has currently logged in
+    protected static Set<String> loggedInUsersSet = new HashSet<>(); //record user that has currently logged in
+    protected static Set<String> commandsSet = new HashSet<>(); //record legal operation commands
     protected static String adminPassword;
     static ReentrantLock syncLock = new ReentrantLock();
     private Socket connectionSocket;
@@ -25,9 +26,8 @@ public class Server extends Thread{
         int serverPort = Integer.parseInt(args[0]);
         adminPassword = args[1];
 
-        loadCredentials();
-
-        updateCredentials();
+        initCredentialsMap();
+        initCommandsSet();
 
         ServerSocket welcomeSocket = new ServerSocket(serverPort);
         System.out.println("Waiting for clients");
@@ -57,10 +57,9 @@ public class Server extends Thread{
             while(!authenticationComplete){
 
                 // read user name from client
-                
                 userName = inFromClient.readLine();
                 boolean isNewUser = !credentialsMap.containsKey(userName);
-                boolean userLoggedIn = loggedInUsers.contains(userName);
+                boolean userLoggedIn = loggedInUsersSet.contains(userName);
                 // validate username-password
                 if(isNewUser){
                     System.out.println("New user");
@@ -72,9 +71,9 @@ public class Server extends Thread{
 
                     credentialsMap.put(userName, userPassword);
 
-                    outToClient.writeBytes("password correct\n");
-                    loggedInUsers.add(userName);
-                    updateCredentials();
+                    outToClient.writeBytes("new password set\n");
+                    loggedInUsersSet.add(userName);
+                    writeCredentialsFile();
                     authenticationComplete = true;
                     System.out.println(userName + " successful login");
 
@@ -90,8 +89,8 @@ public class Server extends Thread{
 
                         if(userPassword.equals(credentialsMap.get(userName))){
                             outToClient.writeBytes("password correct\n");
-                            System.out.println(userName + " successful login");
-                            loggedInUsers.add(userName);
+                            System.out.println(userName + " successfully login");
+                            loggedInUsersSet.add(userName);
                             authenticationComplete = true;
                         }else{
                             outToClient.writeBytes("passsword incorrect\n");
@@ -103,7 +102,20 @@ public class Server extends Thread{
 
             }
 
-            loggedInUsers.remove(userName);
+            // listening for operations from client
+            boolean operationsComplete = false;
+            while(!operationsComplete){
+                String[] operation = inFromClient.readLine().split(" ");
+                if(operation.length!=2){
+                    outToClient.writeBytes("invalid command\n");
+                    continue;
+                }
+                String command = operation[0];
+                String argument = operation[1];
+                commandsHadler(userName, command, argument, outToClient);
+            }
+
+            loggedInUsersSet.remove(userName);
             this.connectionSocket.close();
 
         }catch(Exception e){
@@ -114,7 +126,7 @@ public class Server extends Thread{
         System.out.println("A thread is finished.");
     }
 
-    public static void loadCredentials(){
+    public static void initCredentialsMap(){
         try{
             syncLock.lock(); // we don't want other threads write on credentials.txt while we're reading
             File myObj = new File("credentials.txt");
@@ -125,13 +137,14 @@ public class Server extends Thread{
             }
             myReader.close();
             syncLock.unlock();
-        }catch(IOException e){
+        }catch(Exception e){
             System.out.println("load credentials failed.");
             System.exit(1);
         }
     }
 
-    public static void updateCredentials(){
+    // write current credential information back to credentials.txt
+    public static void writeCredentialsFile(){
         try{
             syncLock.lock(); // we don't want other threads read credentials.txt before writing is done
             PrintWriter out = new PrintWriter("credentials.txt");
@@ -144,6 +157,65 @@ public class Server extends Thread{
             syncLock.unlock();
         }catch(IOException e){
             System.out.println("update credentials failed.");
+        }
+    }
+
+    public static void initCommandsSet(){
+        commandsSet.addAll(Arrays.asList(new String[]{"CRT","LST","MSP","DLT","RDT","EDT","UPD","DWN","RMW","XIT","SHT"}));
+    }
+
+    public static void commandsHadler(String userName, String command, String argument, DataOutputStream outToClient){
+        try{
+            System.out.println(userName + " issued " + command +" command");
+            if(command.equals("CRT")){
+                
+                outToClient.writeBytes("CRT not implemented.\n");
+
+            }else if(command.equals("LST")){
+
+                outToClient.writeBytes("LST not implemented.\n");
+
+            }else if(command.equals("MSP")){
+
+                outToClient.writeBytes("MSP not implemented.\n");
+
+            }else if(command.equals("DLT")){
+
+                outToClient.writeBytes("DLT not implemented.\n");
+
+            }else if(command.equals("RDT")){
+
+                outToClient.writeBytes("RDT not implemented.\n");
+
+            }else if(command.equals("EDT")){
+
+                outToClient.writeBytes("EDT not implemented.\n");
+
+            }else if(command.equals("UPD")){
+
+                outToClient.writeBytes("UPD not implemented.\n");
+
+            }else if(command.equals("DWN")){
+
+                outToClient.writeBytes("DWNnot implemented.\n");
+
+            }else if(command.equals("RMW")){
+
+                outToClient.writeBytes("RMW not implemented.\n");
+
+            }else if(command.equals("XIT")){
+
+                outToClient.writeBytes("XIT not implemented.\n");
+
+            }else if(command.equals("SHT")){
+
+                outToClient.writeBytes("SHT not implemented.\n");
+
+            }else{
+                outToClient.writeBytes("Invalid comand.\n");
+            }
+        }catch(Exception e){
+            System.out.println("commands handler crashes.");
         }
     }
 }

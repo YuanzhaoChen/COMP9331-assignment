@@ -21,7 +21,8 @@ public class Client{
         DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
         BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-        while(true){
+        boolean authenticationComplete = false;
+        while(!authenticationComplete){
             
             // enter user name
             System.out.print("Enter username: ");
@@ -50,30 +51,30 @@ public class Client{
             // read feedback from server
             String passwordFeedback = inFromServer.readLine();
             
-            if(passwordFeedback.equals("password correct")){
-                break;
+            if(passwordFeedback.equals("password correct") || passwordFeedback.equals("new password set")){
+                authenticationComplete = true;
             }else{
                 System.out.println("Invalid password");
             }
 
         }
-        /** 
-        // create read stream and receive from server
-        BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        String sentenceFromServer;
-        sentenceFromServer = inFromServer.readLine();
-        System.out.println(sentenceFromServer);
 
+        System.out.println("Welcome to the forum");
 
-        String sentence;
-        BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
-        sentence = inFromUser.readLine();
+        boolean operationsComplete = false;
+        while(!operationsComplete){
+            // enter operation
+            System.out.print("Enter one of the following commands: CRT, MSG, DLT, EDT, LST, RDT, UPD, DWN, RMV, XIT, SHT: ");
+            BufferedReader inputOperation = new BufferedReader(new InputStreamReader(System.in));
+            String operation = inputOperation.readLine();
+            outToServer.writeBytes(operation + "\n");
+            outToServer.flush();
 
-        System.out.println("writing to server");
-        // write to server
-        DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
-        outToServer.writeBytes(sentence + '\n');
-        */
+            // receive feedback
+            String operationFeedback =  inFromServer.readLine();
+            System.out.println(operationFeedback);
+
+        }
         clientSocket.close();
     }
 }
