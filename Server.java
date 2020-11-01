@@ -7,6 +7,7 @@ import java.util.concurrent.locks.*;
 public class Server extends Thread{
     static Map<String,String> credentialsMap = new HashMap<>(); // Map<user_name,password>
     protected static String adminPassword;
+    static ReentrantLock syncLock = new ReentrantLock();
     private Socket connectionSocket;
 
     public Server (Socket cs){
@@ -25,6 +26,8 @@ public class Server extends Thread{
 
         loadCredentials();
 
+        updateCredentials();
+
         ServerSocket welcomeSocket = new ServerSocket(serverPort);
         System.out.println("Waiting for clients");
 
@@ -37,21 +40,6 @@ public class Server extends Thread{
             s2.start();
 
             
-        }
-    }
-
-    public static void loadCredentials(){
-        try{
-            File myObj = new File("credentials.txt");
-            Scanner myReader = new Scanner(myObj);
-            while(myReader.hasNext()){
-                String[] line = myReader.nextLine().split(" ");
-                credentialsMap.put(line[0], line[1]);
-            }
-            myReader.close();
-        }catch(IOException e){
-            System.out.println("loading credentials failed.");
-            System.exit(1);
         }
     }
 
@@ -73,7 +61,16 @@ public class Server extends Thread{
             String userPassword = inFromClient.readLine();
 
             // validate username-password
-            if(!isNewUser){
+            if(isNewUser){
+
+                credentialsMap.put(userName, userPassword);
+                outToClient.writeBytes("password correct\n");
+                System.out.println(userName + " successful login");
+                authenticationComplete = true;
+                updateCredentials();
+
+            }else{
+
                 if(userPassword.equals(credentialsMap.get(userName))){
                     outToClient.writeBytes("password correct\n");
                     System.out.println(userName + " successful login");
@@ -82,11 +79,7 @@ public class Server extends Thread{
                     outToClient.writeBytes("passsword incorrect\n");
                     System.out.println("Incorrect password");
                 }
-            }else{
-                credentialsMap.put(userName, userPassword);
-                outToClient.writeBytes("password correct\n");
-                System.out.println(userName + " successful login");
-                authenticationComplete = true;
+
             }
 
         }
@@ -98,5 +91,38 @@ public class Server extends Thread{
 
         }
         System.out.println("A thread is finished.");
+    }
+
+    public static void loadCredentials(){
+        try{
+            syncLock.lock(); // we don't want other threads write on credentials.txt while we're reading
+            File myObj = new File("credentials.txt");
+            Scanner myReader = new Scanner(myObj);
+            while(myReader.hasNext()){
+                String[] line = myReader.nextLine().split(" ");
+                credentialsMap.put(line[0], line[1]);
+            }
+            myReader.close();
+            syncLock.unlock();
+        }catch(IOException e){
+            System.out.println("load credentials failed.");
+            System.exit(1);
+        }
+    }
+
+    public static void updateCredentials(){
+        try{
+            syncLock.lock(); // we don't want other threads read credentials.txt before writing is done
+            PrintWriter out = new PrintWriter("credentials.txt");
+            Iterator<String> it = credentialsMap.keySet().iterator();
+            while(it.hasNext()){
+                String userName =  it.next();
+                out.println(userName + " " + credentialsMap.get(userName));
+            }
+            out.close();
+            syncLock.unlock();
+        }catch(IOException e){
+            System.out.println("update credentials failed.");
+        }
     }
 }
