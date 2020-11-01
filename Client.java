@@ -19,6 +19,7 @@ public class Client{
         Socket clientSocket = new Socket(server_ip, server_port);
         
         DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
+        BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
         while(true){
             
@@ -28,19 +29,28 @@ public class Client{
             String userName = inputUserName.readLine();
             outToServer.writeBytes(userName + "\n"); // must terminate with '\n' otherwise server will continue reading
             outToServer.flush();
-    
+
+            // listem to server to check whether this is a new user
+            String userNameFeedback = inFromServer.readLine();
+            if(userNameFeedback.equals("new user")){
+                System.out.print("Enter new password for "+userName+": ");
+            }else if(userNameFeedback.equals("user already logged in")){
+                System.out.println(userName + " has already logged in");
+                continue;
+            }else{
+                System.out.print("Enter password: ");
+            }
+
             // enter password
             BufferedReader inputPassword = new BufferedReader(new InputStreamReader(System.in));
-            System.out.print("Enter password: ");
-            String password = inputPassword.readLine();
-            outToServer.writeBytes(password + "\n"); // must terminate with '\n' otherwise server will continue reading
+            String userPassword = inputPassword.readLine();
+            outToServer.writeBytes(userPassword + "\n"); // must terminate with '\n' otherwise server will continue reading
             outToServer.flush();
 
             // read feedback from server
-            BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            String feedback = inFromServer.readLine();
+            String passwordFeedback = inFromServer.readLine();
             
-            if(feedback.equals("password correct")){
+            if(passwordFeedback.equals("password correct")){
                 break;
             }else{
                 System.out.println("Invalid password");
