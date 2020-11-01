@@ -5,11 +5,13 @@ import java.net.http.*;
 import java.util.concurrent.locks.*;
 
 public class Server extends Thread{
-    static List<SocketAddress> clients = new ArrayList<SocketAddress>();
-    static Map<String,String> credentialMap = new HashMap<>(); // Map<user_name,password>
-    static ReentrantLock syncLock = new ReentrantLock();
-    static int UPDATE_INTERVAL = 1000;//milliseconds
-    public static String adminaPassword;
+    static Map<String,String> credentialsMap = new HashMap<>(); // Map<user_name,password>
+    protected static String adminPassword;
+    private Socket connectionSocket;
+
+    public Server (Socket cs){
+        this.connectionSocket = cs;
+    }
 
     public static void main(String[] args) throws Exception{
 
@@ -26,52 +28,15 @@ public class Server extends Thread{
         ServerSocket welcomeSocket = new ServerSocket(serverPort);
         System.out.println("Waiting for clients");
 
-        //Server s2 = new Server();
-        //s2.run();
-
         while(true){
             Socket connectionSocket = welcomeSocket.accept();
             
             System.out.println("Client connected");
-            // begin authentication
-            BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-            DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-
-            boolean authenticationComplete = false;
-            while(!authenticationComplete){
-                // read user name from client
-                String userName = inFromClient.readLine();
-
-                boolean isNewUser = !credentialMap.containsKey(userName);
-                if(isNewUser){
-                    System.out.println("New user");
-                }
-
-                //read user password from client
-                String userPassword = inFromClient.readLine();
-
-                if(!isNewUser){
-                    if(userPassword.equals(credentialMap.get(userName))){
-                        outToClient.writeBytes("password correct\n");
-                        authenticationComplete = true;
-                    }else{
-                        outToClient.writeBytes("passsword incorrect\n");
-                    }
-                }else{
-                    credentialMap.put(userName, userPassword);
-                    outToClient.writeBytes("password correct\n");
-                    authenticationComplete = true;
-                }
-
-                System.out.println(userName);
-                System.out.println(userPassword);
-
-            }
             
-            
-            
+            Server s2 = new Server(connectionSocket);
+            s2.start();
 
-            connectionSocket.close();
+            
         }
     }
 
@@ -81,7 +46,7 @@ public class Server extends Thread{
             Scanner myReader = new Scanner(myObj);
             while(myReader.hasNext()){
                 String[] line = myReader.nextLine().split(" ");
-                credentialMap.put(line[0], line[1]);
+                credentialsMap.put(line[0], line[1]);
             }
             myReader.close();
         }catch(IOException e){
@@ -92,7 +57,46 @@ public class Server extends Thread{
 
     @Override
     public void run(){
-        // once authentication is successful, throw the rest of the server-client interaction to here
-        System.out.println("Hi~");
+        try{
+        // begin authentication
+        BufferedReader inFromClient = new BufferedReader(new InputStreamReader(this.connectionSocket.getInputStream()));
+        DataOutputStream outToClient = new DataOutputStream(this.connectionSocket.getOutputStream());
+
+        boolean authenticationComplete = false;
+        while(!authenticationComplete){
+            // read user name from client
+            String userName = inFromClient.readLine();
+            boolean isNewUser = !credentialsMap.containsKey(userName);
+            if(isNewUser){ System.out.println("New user");}
+
+            // read user password from client
+            String userPassword = inFromClient.readLine();
+
+            // validate username-password
+            if(!isNewUser){
+                if(userPassword.equals(credentialsMap.get(userName))){
+                    outToClient.writeBytes("password correct\n");
+                    System.out.println(userName + " successful login");
+                    authenticationComplete = true;
+                }else{
+                    outToClient.writeBytes("passsword incorrect\n");
+                    System.out.println("Incorrect password");
+                }
+            }else{
+                credentialsMap.put(userName, userPassword);
+                outToClient.writeBytes("password correct\n");
+                System.out.println(userName + " successful login");
+                authenticationComplete = true;
+            }
+
+        }
+        this.connectionSocket.close();
+
+        }catch(Exception e){
+
+        System.out.println("Thread crashes");
+
+        }
+        System.out.println("A thread is finished.");
     }
 }

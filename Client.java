@@ -13,6 +13,7 @@ public class Client{
             return;
         }
 
+        // get server ip and port
         InetAddress server_ip = InetAddress.getByName(args[0]);
         int server_port = Integer.parseInt(args[1]);
         Socket clientSocket = new Socket(server_ip, server_port);
@@ -25,26 +26,25 @@ public class Client{
             System.out.print("Enter username: ");
             BufferedReader inputUserName = new BufferedReader(new InputStreamReader(System.in));
             String userName = inputUserName.readLine();
-            outToServer.writeBytes(userName + "\n"); //must terminate with '\n' otherwise server will continue reading
+            outToServer.writeBytes(userName + "\n"); // must terminate with '\n' otherwise server will continue reading
             outToServer.flush();
     
             // enter password
             BufferedReader inputPassword = new BufferedReader(new InputStreamReader(System.in));
             System.out.print("Enter password: ");
             String password = inputPassword.readLine();
-            outToServer.writeBytes(password + "\n");
+            outToServer.writeBytes(password + "\n"); // must terminate with '\n' otherwise server will continue reading
             outToServer.flush();
 
+            // read feedback from server
             BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             String feedback = inFromServer.readLine();
             
             if(feedback.equals("password correct")){
                 break;
             }else{
-                System.out.println("Invalid password.");
+                System.out.println("Invalid password");
             }
-
-            //outToServer.
 
         }
         /** 
