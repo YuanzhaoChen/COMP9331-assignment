@@ -9,6 +9,7 @@ public class Server extends Thread{
     static Map<String,String> credentialsMap = new HashMap<>(); // Map<user_name,password>
     protected static Set<String> loggedInUsersSet = new HashSet<>(); // record user that has currently logged in
     protected static Set<String> commandsSet = new HashSet<>(); // record legal operation commands
+    protected static Set<String> activeThreadsSet =  new HashSet<>(); // record threads file (.txt)
     protected static String adminPassword;
     static ReentrantLock syncLock = new ReentrantLock();
     private Socket connectionSocket;
@@ -29,6 +30,7 @@ public class Server extends Thread{
 
         initCredentialsMap();
         initCommandsSet();
+        initActiveThreadsSet();
 
         ServerSocket welcomeSocket = new ServerSocket(serverPort);
         System.out.println("Waiting for clients");
@@ -66,7 +68,7 @@ public class Server extends Thread{
             // listening for operations from client
             boolean operationsComplete = false;
             while(!operationsComplete){
-            
+                
                 operationsComplete = commandsHadler(userInfo, inFromClient, outToClient);
 
             }
@@ -95,6 +97,7 @@ public class Server extends Thread{
                 System.out.println("New user");
                 // notify client this is a new user
                 outToClient.writeBytes("new user\n");
+                outToClient.flush();
 
                 // read user password from client
                 userInfo.userPassword = inFromClient.readLine();
@@ -102,6 +105,7 @@ public class Server extends Thread{
                 credentialsMap.put(userInfo.userName, userInfo.userPassword);
 
                 outToClient.writeBytes("new password set\n");
+                outToClient.flush();
                 loggedInUsersSet.add(userInfo.userName);
                 writeCredentialsFile();
                 System.out.println(userInfo.userName + " successfully login");
@@ -112,16 +116,19 @@ public class Server extends Thread{
                 if(loggedInUsersSet.contains(userInfo.userName)){
 
                     outToClient.writeBytes("user already logged in\n");
+                    outToClient.flush();
                     System.out.println(userInfo.userName + " has already logged in");
 
                 }else{
                     // notify client this is an old user
                     outToClient.writeBytes("old user\n");
+                    outToClient.flush();
                     // read user password from client
                     userInfo.userPassword = inFromClient.readLine();
 
                     if(loggedInUsersSet.contains(userInfo.userName)){ //double check in case user logged in at another terminal during password typing
                         outToClient.writeBytes("user already logged in\n");
+                        outToClient.flush();
                         System.out.println(userInfo.userName + " has already logged in");
                         return false;
                     }
@@ -129,6 +136,7 @@ public class Server extends Thread{
                     if(userInfo.userPassword.equals(credentialsMap.get(userInfo.userName))){
 
                         outToClient.writeBytes("password correct\n");
+                        outToClient.flush();
                         System.out.println(userInfo.userName + " successfully login");
                         loggedInUsersSet.add(userInfo.userName);
                         return true;
@@ -136,6 +144,7 @@ public class Server extends Thread{
                     }else{
 
                         outToClient.writeBytes("passsword incorrect\n");
+                        outToClient.flush();
                         System.out.println("Incorrect password");
 
                     }
@@ -169,10 +178,12 @@ public class Server extends Thread{
                 if(myObj.exists()){
 
                     outToClient.writeBytes("Thread " + argument + " exists\n");
-
+                    outToClient.writeBytes("\n"); //it tells multiple lines writing is end
                 }else{
 
                     outToClient.writeBytes("Thread " + argument + " created\n");
+                    outToClient.writeBytes("\n");
+
                     // create text file 
                     try{        
                         myObj.createNewFile();
@@ -191,11 +202,33 @@ public class Server extends Thread{
                         System.exit(1);
                     }
 
+                    // add record to activeThreadSet
+                    activeThreadsSet.add(argument);
+
                 }
 
-            }else if(command.equals("LST")){
+            }else if(command.equals("LST") && operation.length == 1){
 
-                outToClient.writeBytes("LST not implemented.\n");
+                try{
+                    
+                    if(activeThreadsSet.size()==0){
+                        outToClient.writeBytes("No threads to list\n");
+                    }else{
+                        outToClient.writeBytes("The list of active threads:\n");
+                        Iterator<String> it = activeThreadsSet.iterator();
+                        while(it.hasNext()){
+                            outToClient.writeBytes(it.next() + "\n");
+                        }
+                    }
+                    outToClient.writeBytes("\n"); //it tells multiple lines writing is end
+                    return false;
+
+                }catch(Exception e){
+
+                    System.out.println("list thread crashes");
+                    System.exit(1);
+
+                }
 
             }else if(command.equals("MSG")){
 
@@ -233,10 +266,12 @@ public class Server extends Thread{
 
                 System.out.println(userInfo.userName + " exit");
                 outToClient.writeBytes("Goodbye\n");
+                outToClient.writeBytes("\n"); //it tells multiple lines writing is end
                 return true;
 
             }else{
                 outToClient.writeBytes("Invalid comand.\n");
+                outToClient.writeBytes("\n"); //it tells multiple lines writing is end
             }
 
         }catch(Exception e){
@@ -295,5 +330,23 @@ public class Server extends Thread{
 
     public static void initCommandsSet(){
         commandsSet.addAll(Arrays.asList(new String[]{"CRT","LST","MSP","DLT","RDT","EDT","UPD","DWN","RMW","XIT","SHT"}));
+    }
+
+    // load all active threads name to activetThreadsSet
+    public static void initActiveThreadsSet(){
+        String currentDir = System.getProperty("user.dir");
+        File myObj = new File(currentDir); // we assume all thread files are store in the current directory
+        String[] fileNames = myObj.list();
+        for(String fileName:fileNames){
+            if(fileIsThread(fileName)){
+                fileName = fileName.substring(0,fileName.length()-4);
+                activeThreadsSet.add(fileName);
+            }
+        }
+    }
+
+    // if the file is a thread file then it must be .txt in the current working directory and not credentials.txt
+    public static boolean fileIsThread(String fileName){
+        return fileName.length()>4 && fileName.substring(fileName.length()-4,fileName.length()).equals(".txt") && !fileName.equals("credentials.txt");
     }
 }

@@ -72,14 +72,16 @@ public class Client{
             outToServer.writeBytes(operation + "\n");
             outToServer.flush();
             
-            // receive feedback
-            String operationFeedback =  inFromServer.readLine();
-            System.out.println(operationFeedback);
+            // receive feedback, feedback may contain multiple lines
+            String operationFeedback;
+            while((operationFeedback = inFromServer.readLine()) != null && !operationFeedback.equals("")){
+                System.out.println(operationFeedback);
+            }
 
             if(operation.equals("XIT")){
                 break;
             }
-
+            
         }
         clientSocket.close();
     }
