@@ -9,7 +9,6 @@ public class Server extends Thread{
     static Map<String,String> credentialsMap = new HashMap<>(); // Map<user_name,password>
     protected static Set<String> loggedInUsersSet = new HashSet<>(); // record user that has currently logged in
     protected static Set<String> commandsSet = new HashSet<>(); // record legal operation commands
-    protected static Set<String> existingThreadsSet = new HashSet<>(); // record created thread (.txt file)
     protected static String adminPassword;
     static ReentrantLock syncLock = new ReentrantLock();
     private Socket connectionSocket;
@@ -159,23 +158,15 @@ public class Server extends Thread{
         try{
 
             String[] operation = inFromClient.readLine().split(" ");
-            if(operation.length == 1 && operation[0].equals("XIT")){
-                System.out.println(userInfo.userName + " exit");
-                outToClient.writeBytes("Goodbye\n");
-                return true;
-            }else if(operation.length != 2 ){
-                outToClient.writeBytes("Invalid command\n");
-                return false;
-            }
-
             String command = operation[0];
-            String argument = operation[1];
+            System.out.println(userInfo.userName + " issued " + command + " command");
+            
+            if(command.equals("CRT") && operation.length == 2){
 
-            System.out.println(userInfo.userName + " issued " + command +" command");
+                String argument = operation[1];
+                File myObj = new File(argument + ".txt");
 
-            if(command.equals("CRT")){
-
-                if(existingThreadsSet.contains(argument)){
+                if(myObj.exists()){
 
                     outToClient.writeBytes("Thread " + argument + " exists\n");
 
@@ -183,8 +174,7 @@ public class Server extends Thread{
 
                     outToClient.writeBytes("Thread " + argument + " created\n");
                     // create text file 
-                    try{
-                        File myObj = new File(argument + ".txt");
+                    try{        
                         myObj.createNewFile();
                     }catch(Exception e){
                         System.out.println("create thread crashes");
@@ -200,8 +190,6 @@ public class Server extends Thread{
                         System.out.println("write thread crashes");
                         System.exit(1);
                     }
-
-                    existingThreadsSet.add(argument);
 
                 }
 
@@ -240,6 +228,12 @@ public class Server extends Thread{
             }else if(command.equals("SHT")){
 
                 outToClient.writeBytes("SHT not implemented.\n");
+
+            }else if(command.equals("XIT") && operation.length == 1 ){
+
+                System.out.println(userInfo.userName + " exit");
+                outToClient.writeBytes("Goodbye\n");
+                return true;
 
             }else{
                 outToClient.writeBytes("Invalid comand.\n");
@@ -295,7 +289,7 @@ public class Server extends Thread{
 
             System.out.println("update credentials failed.");
             System.exit(1);
-            
+
         }
     }
 
