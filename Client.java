@@ -53,6 +53,8 @@ public class Client{
             
             if(passwordFeedback.equals("password correct") || passwordFeedback.equals("new password set")){
                 authenticationComplete = true;
+            }else if(passwordFeedback.equals("user already logged in")){
+                System.out.println(userName + " has already logged in");
             }else{
                 System.out.println("Invalid password");
             }

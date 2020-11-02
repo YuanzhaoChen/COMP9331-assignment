@@ -87,7 +87,6 @@ public class Server extends Thread{
             // read user name from client
             userInfo.userName = inFromClient.readLine();
             boolean isNewUser = !credentialsMap.containsKey(userInfo.userName);
-            boolean userLoggedIn = loggedInUsersSet.contains(userInfo.userName);
             // validate username-password
             if(isNewUser){
                 System.out.println("New user");
@@ -102,12 +101,12 @@ public class Server extends Thread{
                 outToClient.writeBytes("new password set\n");
                 loggedInUsersSet.add(userInfo.userName);
                 writeCredentialsFile();
-                System.out.println(userInfo.userName + " successful login");
+                System.out.println(userInfo.userName + " successfully login");
                 return true;
 
             }else{
 
-                if(userLoggedIn){
+                if(loggedInUsersSet.contains(userInfo.userName)){
 
                     outToClient.writeBytes("user already logged in\n");
                     System.out.println(userInfo.userName + " has already logged in");
@@ -117,6 +116,12 @@ public class Server extends Thread{
                     outToClient.writeBytes("old user\n");
                     // read user password from client
                     userInfo.userPassword = inFromClient.readLine();
+
+                    if(loggedInUsersSet.contains(userInfo.userName)){ //double check in case user logged in at another terminal during password typing
+                        outToClient.writeBytes("user already logged in\n");
+                        System.out.println(userInfo.userName + " has already logged in");
+                        return false;
+                    }
 
                     if(userInfo.userPassword.equals(credentialsMap.get(userInfo.userName))){
 
@@ -137,6 +142,7 @@ public class Server extends Thread{
         }catch(Exception e){
 
             System.out.println("anthenticaion handler crashes");
+            System.exit(1);
 
         }
         return false;
@@ -148,7 +154,7 @@ public class Server extends Thread{
         try{
             String[] operation = inFromClient.readLine().split(" ");
             if(operation.length == 1 && operation[0].equals("XIT")){
-                System.out.println(userInfo.userName + " exit\n");
+                System.out.println(userInfo.userName + " exit");
                 outToClient.writeBytes("Goodbye\n");
                 return true;
             }else if(operation.length !=2 ){
@@ -204,6 +210,7 @@ public class Server extends Thread{
             }
         }catch(Exception e){
             System.out.println("commands handler crashes.");
+            System.exit(1);
         }
         return false;
     }
