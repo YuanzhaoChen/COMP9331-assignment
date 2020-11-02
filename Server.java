@@ -5,9 +5,11 @@ import java.net.http.*;
 import java.util.concurrent.locks.*;
 
 public class Server extends Thread{
+
     static Map<String,String> credentialsMap = new HashMap<>(); // Map<user_name,password>
-    protected static Set<String> loggedInUsersSet = new HashSet<>(); //record user that has currently logged in
-    protected static Set<String> commandsSet = new HashSet<>(); //record legal operation commands
+    protected static Set<String> loggedInUsersSet = new HashSet<>(); // record user that has currently logged in
+    protected static Set<String> commandsSet = new HashSet<>(); // record legal operation commands
+    protected static Set<String> existingThreadsSet = new HashSet<>(); // record created thread (.txt file)
     protected static String adminPassword;
     static ReentrantLock syncLock = new ReentrantLock();
     private Socket connectionSocket;
@@ -33,6 +35,7 @@ public class Server extends Thread{
         System.out.println("Waiting for clients");
 
         while(true){
+
             Socket connectionSocket = welcomeSocket.accept();
             
             System.out.println("Client connected");
@@ -40,12 +43,12 @@ public class Server extends Thread{
             Server s2 = new Server(connectionSocket); //once client connects to server, throw the rest of the jobs to the thread
             s2.start();
 
-            
         }
     }
 
     @Override
     public void run(){
+
         try{
 
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(this.connectionSocket.getInputStream()));
@@ -82,6 +85,7 @@ public class Server extends Thread{
 
     //handle authentication process, return true if this process completes
     public static boolean authenticationHandler(UserInformation userInfo, BufferedReader inFromClient, DataOutputStream outToClient){
+        
         try{
         
             // read user name from client
@@ -139,6 +143,7 @@ public class Server extends Thread{
 
                 }
             }
+
         }catch(Exception e){
 
             System.out.println("anthenticaion handler crashes");
@@ -150,24 +155,55 @@ public class Server extends Thread{
 
     // handle all commands, if the client is asked to exit then return true
     public static boolean commandsHadler(UserInformation userInfo, BufferedReader inFromClient, DataOutputStream outToClient){
-
+        
         try{
+
             String[] operation = inFromClient.readLine().split(" ");
             if(operation.length == 1 && operation[0].equals("XIT")){
                 System.out.println(userInfo.userName + " exit");
                 outToClient.writeBytes("Goodbye\n");
                 return true;
-            }else if(operation.length !=2 ){
+            }else if(operation.length != 2 ){
                 outToClient.writeBytes("Invalid command\n");
                 return false;
             }
+
             String command = operation[0];
             String argument = operation[1];
 
             System.out.println(userInfo.userName + " issued " + command +" command");
+
             if(command.equals("CRT")){
 
-                outToClient.writeBytes("CRT not implemented.\n");
+                if(existingThreadsSet.contains(argument)){
+
+                    outToClient.writeBytes("Thread " + argument + " exists\n");
+
+                }else{
+
+                    outToClient.writeBytes("Thread " + argument + " created\n");
+                    // create text file 
+                    try{
+                        File myObj = new File(argument + ".txt");
+                        myObj.createNewFile();
+                    }catch(Exception e){
+                        System.out.println("create thread crashes");
+                        System.exit(1);
+                    }
+                    
+                    // write creator of the thread to file
+                    try(FileWriter fw = new FileWriter(argument + ".txt", true);
+                        BufferedWriter bw = new BufferedWriter(fw);
+                        PrintWriter out = new PrintWriter(bw)){
+                        out.println(userInfo.userName);
+                    } catch (IOException e) {
+                        System.out.println("write thread crashes");
+                        System.exit(1);
+                    }
+
+                    existingThreadsSet.add(argument);
+
+                }
 
             }else if(command.equals("LST")){
 
@@ -208,15 +244,20 @@ public class Server extends Thread{
             }else{
                 outToClient.writeBytes("Invalid comand.\n");
             }
+
         }catch(Exception e){
+
             System.out.println("commands handler crashes.");
             System.exit(1);
+
         }
         return false;
     }
 
     public static void initCredentialsMap(){
+
         try{
+
             syncLock.lock(); // we don't want other threads write on credentials.txt while we're reading
             File myObj = new File("credentials.txt");
             Scanner myReader = new Scanner(myObj);
@@ -226,15 +267,20 @@ public class Server extends Thread{
             }
             myReader.close();
             syncLock.unlock();
+
         }catch(Exception e){
+
             System.out.println("load credentials failed.");
             System.exit(1);
+
         }
     }
 
     // write current credential information back to credentials.txt
     public static void writeCredentialsFile(){
+
         try{
+
             syncLock.lock(); // we don't want other threads read credentials.txt before writing is done
             PrintWriter out = new PrintWriter("credentials.txt");
             Iterator<String> it = credentialsMap.keySet().iterator();
@@ -244,8 +290,12 @@ public class Server extends Thread{
             }
             out.close();
             syncLock.unlock();
+
         }catch(IOException e){
+
             System.out.println("update credentials failed.");
+            System.exit(1);
+            
         }
     }
 
