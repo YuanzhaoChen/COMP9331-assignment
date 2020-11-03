@@ -81,7 +81,7 @@ public class Client{
             if(operation.equals("XIT")){
                 break;
             }
-            
+
         }
         clientSocket.close();
     }
