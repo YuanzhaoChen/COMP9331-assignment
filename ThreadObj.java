@@ -4,7 +4,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class ThreadObj {
 
-    public class LineObj{
+    class LineObj{
         public String author, message;
         public LineObj(String author, String message){
             this.author = author;
@@ -12,7 +12,7 @@ public class ThreadObj {
         }      
     }
 
-    public List<LineObj> lines = new LinkedList<>(); // line number not included
+    private List<LineObj> lines = new LinkedList<>(); // message number not included
     public String threadTitle;
     public String threadCreator;
     private static ReentrantLock syncLock = new ReentrantLock();
@@ -29,6 +29,12 @@ public class ThreadObj {
         LineObj newLine = new LineObj(author, message);
         lines.add(newLine);
         writeThreadFile(); // can be improved by implementing a new method to append new message to file
+    }
+
+    // delete a specific line
+    public void deleteLine(int messageNumber){
+        lines.remove(messageNumber-1); // the index of number lines is 1 less than the displayed messagenumber
+        writeThreadFile();
     }
 
     // load content in .txt file to thread, if it exists
@@ -61,11 +67,11 @@ public class ThreadObj {
     // hardcode the thread information to the .txt file, call it when a thread exist?
     public void writeThreadFile(){
         try{
-            syncLock.lock();
+            syncLock.lock(); //we don't want this section get interrupted
             FileWriter fw = new FileWriter(threadTitle + ".txt");
             fw.write(threadCreator + "\n"); // first line of the thread file is its creator
             for(int i=0; i<lines.size(); i+=1){
-                fw.write(getLineContent(i));
+                fw.write(getLineContent(i+1));
             }
             fw.close();
             syncLock.unlock();
@@ -76,7 +82,17 @@ public class ThreadObj {
     }
 
     // this is the actual content that will write to .txt file
-    public String getLineContent(int index){
-        return Integer.toString(index+1) + " " + lines.get(index).author + ": " + lines.get(index).message + "\n";
+    public String getLineContent(int messageNumber){
+        return Integer.toString(messageNumber) + " " + lines.get(messageNumber-1).author + ": " + lines.get(messageNumber-1).message + "\n";
+    }
+
+    // return the author of a specific line
+    public String getAuthorAtLine(int messageNumber){
+        return lines.get(messageNumber-1).author; // the index of number lines is 1 less than the displayed messagenumber
+    }
+
+    // return the total number of lines of the thread (not include the header)
+    public int size(){
+        return lines.size();
     }
 }

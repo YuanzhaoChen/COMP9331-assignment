@@ -240,21 +240,37 @@ public class Server extends Thread{
                 }
                 outToClient.writeBytes("\n"); //it tells multiple lines writing is end
 
-            }else if(command.equals("DLT")){
+            }else if(command.equals("DLT") && operation.length == 3){
 
-                // create a new object to monitor thread files ???
-                outToClient.writeBytes("DLT not implemented.\n");
+                String threadTitle = operation[1];
+                int messageNumber = Integer.parseInt(operation[2]);
+                if(activeThreadsMap.containsKey(threadTitle)){ //check whether thread exist
+                    ThreadObj targetThread = activeThreadsMap.get(threadTitle);
+                    if(targetThread.size()<messageNumber){  //check whether messageNumber is valid
+                        outToClient.writeBytes("Message number invalid\n");
+                    }else{
+                        if(userInfo.userName.equals(targetThread.getAuthorAtLine(messageNumber))){ //check whether user has the right to delete
+                            targetThread.deleteLine(messageNumber);
+                            outToClient.writeBytes("The message has been deleted\n");
+                        }else{
+                            outToClient.writeBytes(userInfo.userName + " has no right to delete\n");
+                        }
+                    } 
+                }else{
+                    outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
+                }
+                outToClient.writeBytes("\n"); //it tells multiple lines writing is end
 
             }else if(command.equals("RDT") && operation.length == 2){
 
                 String threadTitle = operation[1];
                 if(activeThreadsMap.containsKey(threadTitle)){
                     ThreadObj targetThread = activeThreadsMap.get(threadTitle);
-                    if(targetThread.lines.size()==0){ //only contains header(thread creator)
+                    if(targetThread.size()==0){ //only contains header(thread creator)
                         outToClient.writeBytes("Thread " + threadTitle + " is empty\n" );
                     }else{
-                        for(int i=0; i<targetThread.lines.size(); i+=1){ // header does not display to client
-                            outToClient.writeBytes(targetThread.getLineContent(i));
+                        for(int i=0; i<targetThread.size(); i+=1){ // header does not display to client
+                            outToClient.writeBytes(targetThread.getLineContent(i+1));
                         }
                     }
                 }else{
