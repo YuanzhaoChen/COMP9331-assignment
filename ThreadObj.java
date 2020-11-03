@@ -64,10 +64,8 @@ public class ThreadObj {
             syncLock.lock();
             FileWriter fw = new FileWriter(threadTitle + ".txt");
             fw.write(threadCreator + "\n"); // first line of the thread file is its creator
-            int lineNum = 1;
-            for(LineObj line: lines){
-                fw.write(Integer.toString(lineNum) + " " + line.author + ": " + line.message + "\n");
-                lineNum += 1;
+            for(int i=0; i<lines.size(); i+=1){
+                fw.write(getLineContent(i));
             }
             fw.close();
             syncLock.unlock();
@@ -75,5 +73,10 @@ public class ThreadObj {
             System.out.println("write thread file crashes");
             System.exit(1);
         }
+    }
+
+    // this is the actual content that will write to .txt file
+    public String getLineContent(int index){
+        return Integer.toString(index+1) + " " + lines.get(index).author + ": " + lines.get(index).message + "\n";
     }
 }
