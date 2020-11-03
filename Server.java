@@ -246,15 +246,15 @@ public class Server extends Thread{
                 int messageNumber = Integer.parseInt(operation[2]);
                 if(activeThreadsMap.containsKey(threadTitle)){ //check whether thread exist
                     ThreadObj targetThread = activeThreadsMap.get(threadTitle);
-                    if(targetThread.size()<messageNumber){  //check whether messageNumber is valid
-                        outToClient.writeBytes("Message number invalid\n");
-                    }else{
+                    if(messageNumber > 0 && messageNumber <= targetThread.size()){  //check whether messageNumber is valid
                         if(userInfo.userName.equals(targetThread.getAuthorAtLine(messageNumber))){ //check whether user has the right to delete
                             targetThread.deleteLine(messageNumber);
                             outToClient.writeBytes("The message has been deleted\n");
                         }else{
                             outToClient.writeBytes(userInfo.userName + " has no right to delete\n");
                         }
+                    }else{
+                        outToClient.writeBytes("Message number invalid\n");
                     } 
                 }else{
                     outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
@@ -278,10 +278,30 @@ public class Server extends Thread{
                 }
                 outToClient.writeBytes("\n"); //it tells multiple lines writing is end
 
-            }else if(command.equals("EDT")){
+            }else if(command.equals("EDT") && operation.length >= 4){
 
-                outToClient.writeBytes("EDT not implemented.\n");
-
+                String threadTitle = operation[1];
+                int messageNumber = Integer.parseInt(operation[2]);
+                String newMessage = operation[3];
+                for(int i=4; i<operation.length; i+=1){ //concatenate message into a String
+                    newMessage += " " + operation[i];
+                }
+                if(activeThreadsMap.containsKey(threadTitle)){ //check if threadTitle exist
+                    ThreadObj targetThread = activeThreadsMap.get(threadTitle);
+                    if(messageNumber > 0 && messageNumber <= targetThread.size()){//check whether messageNumber is valid
+                        if(userInfo.userName.equals(targetThread.getAuthorAtLine(messageNumber))){//check whether user has the right to edit
+                            targetThread.editLine(messageNumber, newMessage);
+                        }else{
+                            outToClient.writeBytes(userInfo.userName + " has no right to edit\n");
+                        }
+                    }else{
+                        outToClient.writeBytes("Message number invalid\n");
+                    }
+                }else{
+                    outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
+                }
+                outToClient.writeBytes("\n"); //it tells multiple lines writing is end
+                
             }else if(command.equals("UPD")){
 
                 outToClient.writeBytes("UPD not implemented.\n");

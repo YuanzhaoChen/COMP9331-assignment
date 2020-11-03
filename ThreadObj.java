@@ -37,6 +37,11 @@ public class ThreadObj {
         writeThreadFile();
     }
 
+    // edit a specific line
+    public void editLine(int messageNumber, String newMessage){
+        lines.get(messageNumber-1).message = newMessage;
+    }
+
     // load content in .txt file to thread, if it exists
     public void loadThreadFile(){
         try{
