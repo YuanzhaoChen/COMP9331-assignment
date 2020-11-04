@@ -31,7 +31,7 @@ public class Server extends Thread{
 
         initCredentialsMap();
         initCommandsSet();
-        initActiveThreadsMap();
+        //initActiveThreadsMap();
 
         ServerSocket welcomeSocket = new ServerSocket(serverPort);
         System.out.println("Waiting for clients");
@@ -264,7 +264,7 @@ public class Server extends Thread{
             }else if(command.equals("RDT") && operation.length == 2){
 
                 String threadTitle = operation[1];
-                if(activeThreadsMap.containsKey(threadTitle)){
+                if(activeThreadsMap.containsKey(threadTitle)){ //check whether thread exists
                     ThreadObj targetThread = activeThreadsMap.get(threadTitle);
                     if(targetThread.size()==0){ //only contains header(thread creator)
                         outToClient.writeBytes("Thread " + threadTitle + " is empty\n" );
@@ -273,8 +273,10 @@ public class Server extends Thread{
                             outToClient.writeBytes(targetThread.getLineContent(i+1));
                         }
                     }
+                    System.out.println("Thread " + threadTitle + " read");
                 }else{
                     outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
+                    System.out.println("Incorrect thread specified");
                 }
                 outToClient.writeBytes("\n"); //it tells multiple lines writing is end
 
@@ -291,8 +293,11 @@ public class Server extends Thread{
                     if(messageNumber > 0 && messageNumber <= targetThread.size()){//check whether messageNumber is valid
                         if(userInfo.userName.equals(targetThread.getAuthorAtLine(messageNumber))){//check whether user has the right to edit
                             targetThread.editLine(messageNumber, newMessage);
+                            outToClient.writeBytes("The message has been edited\n");
+                            System.out.println("Message has been edited");
                         }else{
                             outToClient.writeBytes(userInfo.userName + " has no right to edit\n");
+                            System.out.println("Message cannot be edited");
                         }
                     }else{
                         outToClient.writeBytes("Message number invalid\n");
@@ -301,7 +306,7 @@ public class Server extends Thread{
                     outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
                 }
                 outToClient.writeBytes("\n"); //it tells multiple lines writing is end
-                
+
             }else if(command.equals("UPD")){
 
                 outToClient.writeBytes("UPD not implemented.\n");
@@ -310,9 +315,24 @@ public class Server extends Thread{
 
                 outToClient.writeBytes("DWNnot implemented.\n");
 
-            }else if(command.equals("RMW")){
+            }else if(command.equals("RMV") && operation.length == 2){
 
-                outToClient.writeBytes("RMW not implemented.\n");
+                String threadTitle = operation[1];
+                if(activeThreadsMap.containsKey(threadTitle)){ // check whether thread exist
+                    ThreadObj targetThread = activeThreadsMap.get(threadTitle);
+                    if(userInfo.userName.equals(targetThread.threadCreator)){ // check whether user can remove thread
+                        targetThread.removeThreadFile();    // remove corresponding files of the thread
+                        activeThreadsMap.remove(threadTitle); //remove the record from the map
+                        outToClient.writeBytes("Thread " + threadTitle + " removed\n");
+                        System.out.println("Thread " + threadTitle + " removed\n");
+                    }else{
+                        outToClient.writeBytes("The thread was created by another user and cannot be removed\n");
+                        System.out.println("Thread 3331 cannot be removed");
+                    }
+                }else{
+                    outToClient.writeBytes("Thread " + threadTitle + " does not exist\n"); 
+                }
+                outToClient.writeBytes("\n");
 
             }else if(command.equals("SHT")){
 
