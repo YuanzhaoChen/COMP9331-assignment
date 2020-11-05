@@ -6,13 +6,14 @@ import java.util.concurrent.locks.*;
 
 public class Server extends Thread{
 
-    static Map<String,String> credentialsMap = new HashMap<>(); // Map<user_name,password>
-    protected static Set<String> loggedInUsersSet = new HashSet<>(); // record user that has currently logged in
-    protected static Set<String> commandsSet = new HashSet<>(); // record legal operation commands
-    //protected static Set<String> activeThreadsSet =  new HashSet<>(); // record thread titles
-    protected static Map<String, ThreadObj> activeThreadsMap = new HashMap<>(); //Map<threadTitle, ThreadObj>
+    static Map<String,String> credentialsMap = new HashMap<>();         // key = user_name, value = password
+    protected static Set<String> loggedInUsersSet = new HashSet<>();    // record user that has currently logged in
+    protected static Set<String> commandsSet = new HashSet<>();         // record legal operation commands
+    protected static Set<Server> activeClientsSet = new HashSet<>();    // record clients connected to this server 
+    protected static Map<String, ThreadObj> activeThreadsMap = new HashMap<>(); // key = threadTitle, value = ThreadObj
     protected static String adminPassword;
     static ReentrantLock syncLock = new ReentrantLock();
+    private static ServerSocket mainConnectionSocket; //aka, weolcome socket
     private Socket connectionSocket;
 
     public Server (Socket cs){
@@ -31,21 +32,30 @@ public class Server extends Thread{
 
         initCredentialsMap();
         initCommandsSet();
-        //initActiveThreadsMap();
 
         ServerSocket welcomeSocket = new ServerSocket(serverPort);
-        System.out.println("Waiting for clients");
+        mainConnectionSocket = welcomeSocket;
 
         while(true){
-
-            Socket connectionSocket = welcomeSocket.accept();
+            if(activeClientsSet.isEmpty()){
+                System.out.println("Waiting for clients");
+            }
+            Socket newSocket=null;
+            try{
+                newSocket = welcomeSocket.accept();
+            }catch(SocketException e){ // exception will throw if a thread close the welcome socket, 
+                welcomeSocket.close(); // usually occur when SHT issued successfully
+                System.out.println("Server shutting down");
+                System.exit(0); // this will close all child threads
+            }
             
             System.out.println("Client connected");
             
-            Server s2 = new Server(connectionSocket); //once client connects to server, throw the rest of the jobs to the thread
-            s2.start();
-
+            Server s = new Server(newSocket); //once client connects to server, throw the rest of the jobs to the thread
+            activeClientsSet.add(s);
+            s.start();
         }
+
     }
 
     @Override
@@ -70,7 +80,9 @@ public class Server extends Thread{
             }
 
             loggedInUsersSet.remove(userInfo.userName);
-            this.connectionSocket.close();
+            if(!this.connectionSocket.isClosed()){
+                this.connectionSocket.close();
+            }
 
         }catch(Exception e){
 
@@ -212,7 +224,6 @@ public class Server extends Thread{
                     }else{
                         outToClient.writeBytes("The list of active threads:\n");
                         Iterator<String> itr = activeThreadsMap.keySet().iterator();
-                        //Iterator<String> it = activeThreadsSet.iterator();
                         while(itr.hasNext()){
                             outToClient.writeBytes(itr.next() + "\n");
                         }
@@ -334,9 +345,30 @@ public class Server extends Thread{
                 }
                 outToClient.writeBytes("\n");
 
-            }else if(command.equals("SHT")){
+            }else if(command.equals("SHT") && operation.length == 2){
 
-                outToClient.writeBytes("SHT not implemented.\n");
+                if(operation[1].equals(adminPassword)){ // check password correct
+                    // before closing all sockets, we need to delete all active threads and associated files
+                    Iterator<String> itr = activeThreadsMap.keySet().iterator();
+                    while(itr.hasNext()){
+                        String threadTitle = itr.next();
+                        ThreadObj curr = activeThreadsMap.get(threadTitle);
+                        curr.removeThreadFile(); 
+                    }
+                    // close client socket one by one
+                    Iterator<Server> itr2 = activeClientsSet.iterator();
+                    while(itr2.hasNext()){
+                        Server curr = itr2.next();
+                        curr.connectionSocket.close();
+                    }
+                    // close welcome socket
+                    mainConnectionSocket.close();
+                    return true;
+                }else{
+                    outToClient.writeBytes("Incorrect password\n");
+                    outToClient.writeBytes("\n");
+                    System.out.println("Incorrect password");
+                }
 
             }else if(command.equals("XIT") && operation.length == 1 ){
 
@@ -350,9 +382,8 @@ public class Server extends Thread{
                 outToClient.writeBytes("\n"); //it tells multiple lines writing is end
             }
 
-        }catch(Exception e){
+        }catch(Exception e){ // exception will throw if another client close all sockets when shutting down the server, so readLine() crashes
 
-            System.out.println("commands handler crashes.");
             System.exit(1);
 
         }

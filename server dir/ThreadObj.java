@@ -21,7 +21,7 @@ public class ThreadObj {
     }
 
     private List<LineObj> lines = new LinkedList<>(); // message number not included
-    private Set<String> attachedFilesSet = new HashSet<>(); // record file uploaded to this thread 
+    private Set<String> attachedFilesSet = new HashSet<>(); // record file uploaded to this thread when UPD is called
     public String threadTitle;
     public String threadCreator;
     private static ReentrantLock syncLock = new ReentrantLock();
@@ -29,7 +29,6 @@ public class ThreadObj {
     public ThreadObj(String threadTitle, String threadCreator){
         this.threadTitle = threadTitle;
         this.threadCreator = threadCreator;
-        //loadThreadFile(); 
         writeThreadFile();
     }    
 
@@ -50,35 +49,6 @@ public class ThreadObj {
     public void editLine(int messageNumber, String newMessage){
         lines.get(messageNumber-1).message = newMessage;
     }
-
-    // load content in .txt file to thread, if it exists
-    /*
-    public void loadThreadFile(){
-        try{
-            File f = new File(this.threadTitle + ".txt");
-            if(f.exists()){
-                // if it already exists then we need to load existing content
-                Scanner rdr = new Scanner(f);
-                rdr.nextLine();
-                while(rdr.hasNextLine()){
-                    String s = rdr.nextLine();
-                    String[] ss = s.split(" ");
-                    String author = ss[1].substring(0, ss[1].length()-1); // remove ":"
-                    String message = ss[2]; //concatenate message into one string
-                    for(int i=3; i<ss.length ;i+=1){
-                        message += " " + ss[i];
-                    }
-                    LineObj newLineObj = new LineObj(author, message);
-                    lines.add(newLineObj);
-                }
-                rdr.close();
-            }
-        }catch(Exception e){
-            System.out.println("load thread file crashes");
-            System.exit(1);
-        }
-    }
-    */
 
     // hardcode the thread information to the .txt file, call it when a thread exist?
     public void writeThreadFile(){

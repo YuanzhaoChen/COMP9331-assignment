@@ -3,7 +3,7 @@ import java.net.*;
 import java.net.http.*;
 import java.util.Scanner;
 
-public class Client{
+public class Client extends Thread{
     public static void main(String[] args) throws Exception {
 
         System.out.println("Executing client...");
@@ -84,6 +84,11 @@ public class Client{
 
         }
         clientSocket.close();
+    }
+
+    @Override
+    public void run(){
+        
     }
 }
 
