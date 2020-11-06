@@ -37,10 +37,9 @@ public class Server extends Thread{
         ServerSocket welcomeSocket = new ServerSocket(serverPort);
         mainConnectionSocket = welcomeSocket;
 
+        System.out.println("Waiting for clients");
+
         while(true){
-            if(activeClientNum == 0){
-                System.out.println("Waiting for clients");
-            }
             Socket newSocket=null;
             try{
                 newSocket = welcomeSocket.accept();
@@ -53,8 +52,9 @@ public class Server extends Thread{
             System.out.println("Client connected");
             
             Server s = new Server(newSocket); //once client connects to server, throw the rest of the jobs to the thread
-            //activeClientsSet.add(s);
+            syncLock.lock(); // common resource should not be changed by more than one thread at the same time
             activeClientNum += 1;
+            syncLock.unlock();
             s.start();
         }
 
@@ -265,6 +265,7 @@ public class Server extends Thread{
     // write current credential information back to credentials.txt
     public static void writeCredentialsFile(){
         try{
+
             syncLock.lock(); // we don't want other threads read credentials.txt before writing is done
             PrintWriter out = new PrintWriter("credentials.txt");
             Iterator<String> it = credentialsMap.keySet().iterator();
@@ -274,9 +275,12 @@ public class Server extends Thread{
             }
             out.close();
             syncLock.unlock();
+
         }catch(IOException e){
+
             System.out.println("update credentials failed.");
             System.exit(1);
+            
         }
     }
 
@@ -598,9 +602,13 @@ public class Server extends Thread{
     public static boolean XIT_handler(UserInformation userInfo, DataOutputStream outToClient){
         try{
 
-            //activeClientsSet.remove(server);
+            syncLock.lock();
             activeClientNum -= 1;
+            syncLock.unlock();
             System.out.println(userInfo.userName + " exit");
+            if(activeClientNum == 0){
+                System.out.println("Waiting for clients");
+            }
             outToClient.writeBytes("Goodbye\n");
             outToClient.writeBytes("\n"); //it tells multiple lines writing is end
             
