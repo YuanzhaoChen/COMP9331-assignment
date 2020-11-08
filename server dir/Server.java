@@ -5,17 +5,16 @@ import java.net.http.*;
 import java.util.concurrent.locks.*;
 
 public class Server extends Thread{
-
-    private static Map<String,String> credentialsMap = new HashMap<>();         // key = user_name, value = password
-    private static Set<String> loggedInUsersSet = new HashSet<>();    // record user that has currently logged in
+    private static Map<String,String> credentialsMap = new HashMap<>(); // key: user_name, value: password
+    private static Set<String> loggedInUsersSet = new HashSet<>();      // record user that has currently logged in
     protected static Set<String> commandsSet = new HashSet<>();         // record legal operation commands
-    //protected static Set<Server> activeClientsSet = new HashSet<>();    // record clients connected to this server 
     private static int activeClientNum = 0;
-    private static Map<String, ThreadObj> activeThreadsMap = new HashMap<>(); // key = threadTitle, value = ThreadObj
+    private static Map<String, ThreadObj> activeThreadsMap = new HashMap<>(); // key: threadTitle, value: ThreadObj
     private static String adminPassword;
     private static ReentrantLock syncLock = new ReentrantLock();
-    private static ServerSocket mainConnectionSocket; //aka, weolcome socket
+    private static ServerSocket welcomeSocket; //aka, welcome socket
     private Socket connectionSocket;
+    public static boolean isShutDown = false;
 
     public Server (Socket cs){
         this.connectionSocket = cs;
@@ -34,8 +33,7 @@ public class Server extends Thread{
         initCredentialsMap();
         initCommandsSet();
 
-        ServerSocket welcomeSocket = new ServerSocket(serverPort);
-        mainConnectionSocket = welcomeSocket;
+        welcomeSocket = new ServerSocket(serverPort);
 
         System.out.println("Waiting for clients");
 
@@ -44,18 +42,27 @@ public class Server extends Thread{
             try{
                 newSocket = welcomeSocket.accept();
             }catch(SocketException e){ // exception will throw if a thread close the welcome socket, 
-                welcomeSocket.close(); // usually occur when SHT issued successfully
                 System.out.println("Server shutting down");
+                isShutDown = true;
+                Thread.sleep(300);
+                welcomeSocket.close(); // usually occur when SHT issued successfully
                 System.exit(0); // this will close all child threads
             }
             
-            System.out.println("Client connected");
-            
-            Server s = new Server(newSocket); //once client connects to server, throw the rest of the jobs to the thread
-            syncLock.lock(); // common resource should not be changed by more than one thread at the same time
-            activeClientNum += 1;
-            syncLock.unlock();
-            s.start();
+            BufferedReader in = new BufferedReader(new InputStreamReader(newSocket.getInputStream()));
+
+            if(in.readLine().equals("1")){
+                System.out.println("Client connected");
+                Server s = new Server(newSocket); // once client connects to server, the rest of the jobs are done by thread
+                syncLock.lock(); // common resource should not be changed by more than one thread at the same time
+                activeClientNum += 1;
+                syncLock.unlock();
+                s.start();
+            }else{
+                ServerConnectionChecker c = new ServerConnectionChecker(newSocket);
+                c.start();
+            }
+
         }
 
     }
@@ -75,12 +82,13 @@ public class Server extends Thread{
                 authenticationComplete = authenticationHandler(userInfo, inFromClient, outToClient);
             }
 
-            // listening for operations from client
+            // serving requests from client
             boolean operationsComplete = false;
             while(!operationsComplete){
                 operationsComplete = commandsHadler(userInfo, inFromClient, outToClient);
             }
 
+            // client is done
             loggedInUsersSet.remove(userInfo.userName);
             if(!this.connectionSocket.isClosed()){
                 this.connectionSocket.close();
@@ -193,7 +201,7 @@ public class Server extends Thread{
 
                 MSG_handler(operation, userInfo, outToClient);
 
-            }else if(command.equals("DLT") && operation.length == 3){
+            }else if(command.equals("DLT") && operation.length == 3 && isInteger(operation[2])){
 
                 DLT_handler(operation, userInfo, outToClient);
 
@@ -201,7 +209,7 @@ public class Server extends Thread{
 
                 RDT_handler(operation, outToClient);
 
-            }else if(command.equals("EDT") && operation.length >= 4){
+            }else if(command.equals("EDT") && operation.length >= 4 && isInteger(operation[2])){
 
                 EDT_handler(operation, userInfo, outToClient);
 
@@ -237,6 +245,15 @@ public class Server extends Thread{
 
         }
         return retval;
+    }
+
+    public static boolean isInteger(String s){
+        for(int i=0; i<s.length(); i+=1){
+            if(s.charAt(i)<'0' || s.charAt(i)>'9'){
+                return false;
+            }
+        }
+        return true;
     }
 
     // if the file is a thread file then it must be .txt in the current working directory and not credentials.txt
@@ -559,7 +576,6 @@ public class Server extends Thread{
         try{
 
             if(operation[1].equals(adminPassword)){ // check password correct
-
                 // before closing all sockets, we need to delete all active threads and associated files
                 Iterator<String> itr = activeThreadsMap.keySet().iterator();
                 while(itr.hasNext()){
@@ -567,7 +583,9 @@ public class Server extends Thread{
                     ThreadObj curr = activeThreadsMap.get(threadTitle);
                     curr.removeThreadFile(); 
                 }
-                // close client socket one by one // since SHT will terminate this program directly, maybe this is optional?
+
+                // close client socket one by one 
+                // since SHT will terminate this program directly, maybe this is optional?
                 /*
                 Iterator<Server> itr2 = activeClientsSet.iterator();
                 while(itr2.hasNext()){
@@ -575,24 +593,20 @@ public class Server extends Thread{
                     curr.connectionSocket.close();
                 }
                 */
+
                 // close welcome socket
-                mainConnectionSocket.close();
+                welcomeSocket.close();
                 return true;
-    
             }else{
-    
                 System.out.println("Incorrect password");
                 outToClient.writeBytes("Incorrect password\n");
                 outToClient.writeBytes("\n");
                 return false;
-    
             }
 
         }catch(Exception e){
-
             System.out.println("SHT_handler crashes");
             return true;
-
         }
 
     }
@@ -623,10 +637,8 @@ public class Server extends Thread{
     public static void invalidCommand_handler(String command, DataOutputStream outToClient){
         try{
             if(!commandsSet.contains(command)){ // send usage guide only if it is in the commands set
-
                 System.out.println("Invalid command");
                 outToClient.writeBytes("Invalid comand\n");
-    
             }else{
     
                 System.out.println("Wrong use of " + command);
