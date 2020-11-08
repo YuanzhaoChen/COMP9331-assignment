@@ -12,7 +12,7 @@ public class Server extends Thread{
     private static Map<String, ThreadObj> activeThreadsMap = new HashMap<>(); // key: threadTitle, value: ThreadObj
     private static String adminPassword;
     private static ReentrantLock syncLock = new ReentrantLock();
-    private static ServerSocket welcomeSocket; //aka, welcome socket
+    private static ServerSocket welcomeSocket;
     private Socket connectionSocket;
     public static boolean isShutDown = false;
 
@@ -21,7 +21,6 @@ public class Server extends Thread{
     }
 
     public static void main(String[] args) throws Exception{
-
         if(args.length != 2){
             System.out.println("Usage: java Server <server_port> <admin_password>");
             return;
@@ -34,7 +33,6 @@ public class Server extends Thread{
         initCommandsSet();
 
         welcomeSocket = new ServerSocket(serverPort);
-
         System.out.println("Waiting for clients");
 
         while(true){
@@ -46,19 +44,19 @@ public class Server extends Thread{
                 isShutDown = true;
                 Thread.sleep(300);
                 welcomeSocket.close(); // usually occur when SHT issued successfully
-                System.exit(0); // this will close all child threads
+                System.exit(0);         // this will close all child threads
             }
             
             BufferedReader in = new BufferedReader(new InputStreamReader(newSocket.getInputStream()));
 
-            if(in.readLine().equals("1")){
+            if(in.readLine().equals("1")){          // type 1 socket is the one interacts with the forum
                 System.out.println("Client connected");
-                Server s = new Server(newSocket); // once client connects to server, the rest of the jobs are done by thread
-                syncLock.lock(); // common resource should not be changed by more than one thread at the same time
+                Server s = new Server(newSocket);   // once client connects to server, the rest of the jobs are done by thread
+                syncLock.lock();                    // common resource should not be changed by more than one thread at the same time
                 activeClientNum += 1;
                 syncLock.unlock();
                 s.start();
-            }else{
+            }else{                                  // type 2 socket checks server-client connection
                 ServerConnectionChecker c = new ServerConnectionChecker(newSocket);
                 c.start();
             }
@@ -182,6 +180,7 @@ public class Server extends Thread{
     public static boolean commandsHadler(UserInformation userInfo, BufferedReader inFromClient, DataOutputStream outToClient){
         boolean retval = false;
         try{
+
             String[] operation = inFromClient.readLine().split(" ");
             String command = operation[0];
 
@@ -264,6 +263,7 @@ public class Server extends Thread{
     // load user-password pair into the program
     public static void initCredentialsMap(){
         try{
+
             syncLock.lock(); // we don't want other threads write on credentials.txt while we're reading
             File myObj = new File("credentials.txt");
             Scanner myReader = new Scanner(myObj);
@@ -273,9 +273,12 @@ public class Server extends Thread{
             }
             myReader.close();
             syncLock.unlock();
+
         }catch(Exception e){
+
             System.out.println("load credentials failed.");
             System.exit(1);
+
         }
     }
 
@@ -313,6 +316,7 @@ public class Server extends Thread{
         for(String fileName:fileNames){
             if(fileIsThread(fileName)){
                 try{
+
                     String threadTitle = fileName.substring(0,fileName.length()-4);
                     // first line of the thread file is the threadCreator, we can assume that it always exists
                     File f = new File(fileName);
@@ -321,9 +325,12 @@ public class Server extends Thread{
                     rdr.close();
                     ThreadObj newThread = new ThreadObj(threadTitle, threadCreator);
                     activeThreadsMap.put(threadTitle, newThread);
+
                 }catch(FileNotFoundException e){
+
                     System.out.println("init acitive threads crashes");
                     System.exit(1);
+                    
                 } 
             }
         }
@@ -636,11 +643,11 @@ public class Server extends Thread{
 
     public static void invalidCommand_handler(String command, DataOutputStream outToClient){
         try{
+
             if(!commandsSet.contains(command)){ // send usage guide only if it is in the commands set
                 System.out.println("Invalid command");
                 outToClient.writeBytes("Invalid comand\n");
             }else{
-    
                 System.out.println("Wrong use of " + command);
                 if(command.equals("CRT")){
     
@@ -696,6 +703,5 @@ public class Server extends Thread{
 
         }
     }
-        
 
 }
