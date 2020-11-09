@@ -22,6 +22,7 @@ public class ThreadObj {
 
     private List<LineObj> lines = new LinkedList<>(); // message number not included
     private Set<String> attachedFilesSet = new HashSet<>(); // record file uploaded to this thread when UPD is called
+    private int totalMessageNum = 0;
     public String threadTitle;
     public String threadCreator;
     private static ReentrantLock syncLock = new ReentrantLock();
@@ -36,18 +37,31 @@ public class ThreadObj {
     public void appendToThread(String author, String message){
         LineObj newLine = new LineObj(author, message, true);
         lines.add(newLine);
+        totalMessageNum += 1;
         writeThreadFile(); // can be improved by implementing a new method to append new message to file
     }
 
-    // delete a specific line
-    public void deleteLine(int messageNumber){
-        lines.remove(messageNumber-1); // the index of number lines is 1 less than the displayed messagenumber
+    // append uploaded file info to the lines, called by UPD_handler
+    public void appendUploadedFileToThread(String author,String fileName){
+        LineObj newLine = new LineObj(author, fileName, false);
+        lines.add(newLine);
+        attachedFilesSet.add(threadTitle + '-' + fileName);
         writeThreadFile();
     }
 
-    // edit a specific line
+    // delete a specific line, only messsage line is considered
+    public void deleteLine(int messageNumber){
+        int index = messageNumToIndex(messageNumber);
+        lines.remove(index); // the index of number lines is 1 less than the displayed messagenumber
+        totalMessageNum -= 1;
+        writeThreadFile();
+    }
+
+    // edit a specific line, only message line is considered
     public void editLine(int messageNumber, String newMessage){
-        lines.get(messageNumber-1).message = newMessage;
+        int index = messageNumToIndex(messageNumber);
+        lines.get(index).message = newMessage;
+        writeThreadFile();
     }
 
     // hardcode the thread information to the .txt file, call it when a thread exist?
@@ -57,7 +71,7 @@ public class ThreadObj {
             FileWriter fw = new FileWriter(threadTitle + ".txt");
             fw.write(threadCreator + "\n"); // first line of the thread file is its creator
             for(int i=0; i<lines.size(); i+=1){
-                fw.write(getLineContent(i+1));
+                fw.write(getLineContent(i));
             }
             fw.close();
             syncLock.unlock();
@@ -81,17 +95,54 @@ public class ThreadObj {
     }
 
     // this is the actual message content that will write to .txt file
-    public String getLineContent(int messageNumber){
-        return Integer.toString(messageNumber) + " " + lines.get(messageNumber-1).author + ": " + lines.get(messageNumber-1).message + "\n";
+    // for each line, it can be either a message or a UPD info
+    public String getLineContent(int index){
+        if(lines.get(index).isMessage){
+            int messageNumber = indexToMessageNum(index);
+            return Integer.toString(messageNumber) + " " + lines.get(index).author + ": " + lines.get(index).message + "\n";
+        }else{
+            return lines.get(index).author + " uploaded " + lines.get(index).fileName + "\n";
+        }
     }
 
-    // return the author of a specific line
+    // return the author of a specific line, only message line is considered
     public String getAuthorAtLine(int messageNumber){
-        return lines.get(messageNumber-1).author; // the index of number lines is 1 less than the displayed messagenumber
+        return lines.get(messageNumToIndex(messageNumber)).author;
+    }
+
+    // map the corresponding index in lines of a message number
+    public int messageNumToIndex(int messageNumber){ 
+        int n = 1;
+        int index = 0;
+        while(index<lines.size() && n != messageNumber){
+            if(lines.get(index).isMessage){
+                n += 1;
+            }
+            index += 1;
+        }
+        return n;
+    }
+
+    // map the corresponding message num of a index
+    public int indexToMessageNum(int index){
+        int i = 0;
+        int n = 1;
+        while(i<index){
+            if(lines.get(i).isMessage){
+                n += 1;
+            }
+            i += 1;
+        }
+        return n;
     }
 
     // return the total number of lines of the thread (not include the header)
     public int size(){
         return lines.size();
+    }
+
+    // total number of message line
+    public int totalMessageNum(){
+        return totalMessageNum;
     }
 }

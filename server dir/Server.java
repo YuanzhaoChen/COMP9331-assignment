@@ -83,7 +83,8 @@ public class Server extends Thread{
             // serving requests from client
             boolean operationsComplete = false;
             while(!operationsComplete){
-                operationsComplete = commandsHadler(userInfo, inFromClient, outToClient);
+                operationsComplete = commandsHadler(userInfo, inFromClient, outToClient,this.connectionSocket);
+                //operationsComplete = commandsHadler(userInfo, new BufferedReader(new InputStreamReader(this.connectionSocket.getInputStream())), new DataOutputStream(this.connectionSocket.getOutputStream()),this.connectionSocket);
             }
 
             // client is done
@@ -100,7 +101,7 @@ public class Server extends Thread{
     }
 
     //handle authentication process, return true if this process completes
-    public static boolean authenticationHandler(UserInformation userInfo, BufferedReader inFromClient, DataOutputStream outToClient){
+    private static boolean authenticationHandler(UserInformation userInfo, BufferedReader inFromClient, DataOutputStream outToClient){
         
         try{
         
@@ -177,7 +178,7 @@ public class Server extends Thread{
     }
 
     // handle all commands, if the server is asked to exit/shutdown then return true
-    public static boolean commandsHadler(UserInformation userInfo, BufferedReader inFromClient, DataOutputStream outToClient){
+    private static boolean commandsHadler(UserInformation userInfo, BufferedReader inFromClient, DataOutputStream outToClient, Socket connectionSocket){
         boolean retval = false;
         try{
 
@@ -212,9 +213,10 @@ public class Server extends Thread{
 
                 EDT_handler(operation, userInfo, outToClient);
 
-            }else if(command.equals("UPD")){
+            }else if(command.equals("UPD") && operation.length >= 3){
 
-                outToClient.writeBytes("UPD not implemented.\n");
+                //outToClient.writeBytes("UPD not implemented.\n");
+                UPD_handler(operation, userInfo, inFromClient, outToClient, connectionSocket);
 
             }else if(command.equals("DWN")){
 
@@ -435,7 +437,7 @@ public class Server extends Thread{
             if(activeThreadsMap.containsKey(threadTitle)){ //check whether thread exist
 
                 ThreadObj targetThread = activeThreadsMap.get(threadTitle);
-                if(messageNumber > 0 && messageNumber <= targetThread.size()){  //check whether messageNumber is valid
+                if(messageNumber > 0 && messageNumber <= targetThread.totalMessageNum()){  //check whether messageNumber is valid
 
                     if(userInfo.userName.equals(targetThread.getAuthorAtLine(messageNumber))){ //check whether user has the right to delete
                         targetThread.deleteLine(messageNumber);
@@ -481,7 +483,7 @@ public class Server extends Thread{
                     outToClient.writeBytes("Thread " + threadTitle + " is empty\n");
                 }else{
                     for(int i=0; i<targetThread.size(); i+=1){ // header does not display to client
-                        outToClient.writeBytes(targetThread.getLineContent(i+1));
+                        outToClient.writeBytes(targetThread.getLineContent(i));
                     }
                     System.out.println("Thread " + threadTitle + " read");
                 }
@@ -639,6 +641,51 @@ public class Server extends Thread{
 
         }
         return true;
+    }
+
+    public static void UPD_handler(String[] operation, UserInformation userInfo, BufferedReader inFromClient, DataOutputStream outToClient, Socket connectionSocket){
+        try{
+            String threadTitle = operation[1];
+            String fileName = operation[2];
+            if(activeThreadsMap.containsKey(threadTitle)){
+                String canonicalFileName = threadTitle + "-" + fileName; //this is the real name store on the server side
+                File myObj = new File(canonicalFileName);
+                if(myObj.exists()){ // although assignment spec assumes this won't happen
+                    System.out.println(fileName + " already exists in thread " + threadTitle);
+                    outToClient.writeBytes("File exists\n"); //tell the client don't proceed to upload
+                }else{
+                    outToClient.writeBytes("OK\n"); //tell the client it is OK to upload
+                    try{
+                        // proceed upload process
+                        DataInputStream in = new DataInputStream(connectionSocket.getInputStream());
+                        OutputStream stream = new FileOutputStream(canonicalFileName);
+                        long fileSize = in.readLong();
+                        byte[] b = new byte[16*1024];
+                        int count = 0;
+                        while(fileSize>0 && (count = in.read(b,0,(int)Math.min(b.length, fileSize))) !=-1){
+                            stream.write(b,0,count);
+                            stream.flush();
+                            fileSize -= count;
+                        }
+                        System.out.println("File upload successful");
+                        outToClient.writeBytes("File upload successful\n");
+                        stream.close();
+                        
+                        // record file info to the corresponding thread
+                        ThreadObj targeThread = activeThreadsMap.get(threadTitle);
+                        targeThread.appendUploadedFileToThread(userInfo.userName, fileName);
+                    }catch(IOException e) {
+                        System.out.println("write UPD file crashes");
+                    }
+                }
+            }else{
+                System.out.println("Thread " + threadTitle + " does not exist");
+                outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
+            }
+            outToClient.writeBytes("\n");
+        }catch(Exception e){
+            System.out.println("UDP_handler crashes");
+        }
     }
 
     public static void invalidCommand_handler(String command, DataOutputStream outToClient){
