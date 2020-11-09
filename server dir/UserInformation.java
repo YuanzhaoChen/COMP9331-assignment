@@ -4,6 +4,7 @@ public class UserInformation {
     public UserInformation(){
 
     }
+    
     public UserInformation(String userName, String userPassword){
         this.userName = userName;
         this.userPassword =  userPassword;

@@ -114,7 +114,6 @@ public class Client extends Thread{
             }else{
                 System.out.println("Invalid password");
             }
-            
         }catch(Exception e){
             System.out.println("authentication_handler crashes");
         }
@@ -131,7 +130,7 @@ public class Client extends Thread{
             outToServer.writeBytes(operation + "\n"); // send operation to the server
             outToServer.flush();
 
-            if(operation.length()>=3 && operation.substring(0,3).equals("UPD")){
+            if(operation.split(" ").length==3 && operation.substring(0,3).equals("UPD")){
                 try{
                     if(inFromServer.readLine().equals("OK")){
                         File file = new File(operation.split(" ")[2]);
@@ -172,7 +171,6 @@ public class Client extends Thread{
                 isExit = true;
                 return true;
             }
-
             return false;
         }catch(Exception e){
             System.out.println("forumInteraction_handler crashes");

@@ -3,7 +3,6 @@ import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class ThreadObj {
-
     private class LineObj{
         public String author, message, fileName;
         boolean isMessage; //if it is not a message then it is uploaded file's info
@@ -120,7 +119,7 @@ public class ThreadObj {
             }
             index += 1;
         }
-        return n;
+        return index;
     }
 
     // map the corresponding message num of a index

@@ -60,16 +60,12 @@ public class Server extends Thread{
                 ServerConnectionChecker c = new ServerConnectionChecker(newSocket);
                 c.start();
             }
-
         }
-
     }
 
     @Override
     public void run(){
-
         try{
-
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(this.connectionSocket.getInputStream()));
             DataOutputStream outToClient = new DataOutputStream(this.connectionSocket.getOutputStream());
             UserInformation userInfo = new UserInformation();
@@ -92,19 +88,14 @@ public class Server extends Thread{
             if(!this.connectionSocket.isClosed()){
                 this.connectionSocket.close();
             }
-
         }catch(Exception e){
-
             System.out.println("Thread crashes");
-
         }
     }
 
     //handle authentication process, return true if this process completes
     private static boolean authenticationHandler(UserInformation userInfo, BufferedReader inFromClient, DataOutputStream outToClient){
-        
         try{
-        
             // read user name from client
             userInfo.userName = inFromClient.readLine();
             boolean isNewUser = !credentialsMap.containsKey(userInfo.userName);
@@ -143,6 +134,7 @@ public class Server extends Thread{
                     userInfo.userPassword = inFromClient.readLine();
 
                     if(loggedInUsersSet.contains(userInfo.userName)){ //double check in case user logged in at another terminal during password typing
+
                         outToClient.writeBytes("user already logged in\n");
                         outToClient.flush();
                         System.out.println(userInfo.userName + " has already logged in");
@@ -164,15 +156,11 @@ public class Server extends Thread{
                         System.out.println("Incorrect password");
 
                     }
-
                 }
             }
-
         }catch(Exception e){
-
             System.out.println("authenticaion handler crashes");
             System.exit(1);
-
         }
         return false;
     }
@@ -213,7 +201,7 @@ public class Server extends Thread{
 
                 EDT_handler(operation, userInfo, outToClient);
 
-            }else if(command.equals("UPD") && operation.length >= 3){
+            }else if(command.equals("UPD") && operation.length == 3){
 
                 //outToClient.writeBytes("UPD not implemented.\n");
                 UPD_handler(operation, userInfo, inFromClient, outToClient, connectionSocket);
@@ -265,7 +253,6 @@ public class Server extends Thread{
     // load user-password pair into the program
     public static void initCredentialsMap(){
         try{
-
             syncLock.lock(); // we don't want other threads write on credentials.txt while we're reading
             File myObj = new File("credentials.txt");
             Scanner myReader = new Scanner(myObj);
@@ -275,19 +262,15 @@ public class Server extends Thread{
             }
             myReader.close();
             syncLock.unlock();
-
         }catch(Exception e){
-
             System.out.println("load credentials failed.");
             System.exit(1);
-
         }
     }
 
     // write current credential information back to credentials.txt
     public static void writeCredentialsFile(){
         try{
-
             syncLock.lock(); // we don't want other threads read credentials.txt before writing is done
             PrintWriter out = new PrintWriter("credentials.txt");
             Iterator<String> it = credentialsMap.keySet().iterator();
@@ -297,12 +280,9 @@ public class Server extends Thread{
             }
             out.close();
             syncLock.unlock();
-
         }catch(IOException e){
-
             System.out.println("update credentials failed.");
-            System.exit(1);
-            
+            System.exit(1);  
         }
     }
 
@@ -329,10 +309,8 @@ public class Server extends Thread{
                     activeThreadsMap.put(threadTitle, newThread);
 
                 }catch(FileNotFoundException e){
-
                     System.out.println("init acitive threads crashes");
                     System.exit(1);
-                    
                 } 
             }
         }
@@ -370,19 +348,14 @@ public class Server extends Thread{
                 ThreadObj newThread =  new ThreadObj(threadTitle, userInfo.userName);
                 activeThreadsMap.put(threadTitle, newThread);
             }
-
         }catch(Exception e){
-
             System.out.println("CRT_handler crashes");
-            
         }
-        
     }
 
     // handle LST command from the client
     public static void LST_handler(DataOutputStream outToClient){
         try{
-
             if(activeThreadsMap.isEmpty()){
                 outToClient.writeBytes("No threads to list\n");
             }else{
@@ -393,18 +366,14 @@ public class Server extends Thread{
                 }
             }
             outToClient.writeBytes("\n"); //it tells multiple lines writing is end
-
         }catch(Exception e){
-
             System.out.println("LST_handler crashes");
-
         }
     }
 
     // handle MSG command from the client
     public static void MSG_handler(String[] operation, UserInformation userInfo, DataOutputStream outToClient){
         try{
-
             String threadTitle = operation[1];
             String message = operation[2];
             for(int i=3; i<operation.length; i+=1){ // message concatenate into one string
@@ -419,26 +388,20 @@ public class Server extends Thread{
                 outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
             }
             outToClient.writeBytes("\n"); //it tells multiple lines writing is end
-
         }catch(Exception e){
-
             System.out.println("MSG_handler crashes");
-
         }
-        
     }
 
     // handle DLT command from the client
     public static void DLT_handler(String[] operation, UserInformation userInfo, DataOutputStream outToClient){
         try{
-
             String threadTitle = operation[1];
             int messageNumber = Integer.parseInt(operation[2]);
             if(activeThreadsMap.containsKey(threadTitle)){ //check whether thread exist
-
                 ThreadObj targetThread = activeThreadsMap.get(threadTitle);
-                if(messageNumber > 0 && messageNumber <= targetThread.totalMessageNum()){  //check whether messageNumber is valid
 
+                if(messageNumber > 0 && messageNumber <= targetThread.totalMessageNum()){  //check whether messageNumber is valid
                     if(userInfo.userName.equals(targetThread.getAuthorAtLine(messageNumber))){ //check whether user has the right to delete
                         targetThread.deleteLine(messageNumber);
                         System.out.println("Messgae has been deleted");
@@ -447,37 +410,27 @@ public class Server extends Thread{
                         System.out.println("Message cannot be deleted");
                         outToClient.writeBytes(userInfo.userName + " has no right to delete\n");
                     }
-
                 }else{
-
                     System.out.println("Message number invalid");
                     outToClient.writeBytes("Message number invalid\n");
-
                 } 
-
             }else{
-
                 System.out.println("Thread " + threadTitle + " does not exist");
                 outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
-
             }
             outToClient.writeBytes("\n"); //it tells multiple lines writing is end
-
-        }catch(Exception e){
-            
+        }catch(Exception e){   
             System.out.println("DLT_handler crashes");
-
         }
     }
 
     // handle RDT command from the client
     public static void RDT_handler(String[] operation, DataOutputStream outToClient){
         try{
-
             String threadTitle = operation[1];
             if(activeThreadsMap.containsKey(threadTitle)){ //check whether thread exists
-
                 ThreadObj targetThread = activeThreadsMap.get(threadTitle);
+
                 if(targetThread.size()==0){ //only contains header(thread creator)
                     System.out.println("Thread " + threadTitle + " is empty");
                     outToClient.writeBytes("Thread " + threadTitle + " is empty\n");
@@ -489,24 +442,18 @@ public class Server extends Thread{
                 }
 
             }else{
-
                 outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
                 System.out.println("Incorrect thread specified");
-
             }
             outToClient.writeBytes("\n"); //it tells multiple lines writing is end
-
         }catch(Exception e){
-
             System.out.println("RDT_handler crashes");
-
         }   
     }
 
     // handle EDT command from the client
     public static void EDT_handler(String[] operation, UserInformation userInfo, DataOutputStream outToClient){
         try{
-
             String threadTitle = operation[1];
             int messageNumber = Integer.parseInt(operation[2]);
             String newMessage = operation[3];
@@ -514,9 +461,9 @@ public class Server extends Thread{
                 newMessage += " " + operation[i];
             }
             if(activeThreadsMap.containsKey(threadTitle)){ //check if threadTitle exist
-
                 ThreadObj targetThread = activeThreadsMap.get(threadTitle);
-                if(messageNumber > 0 && messageNumber <= targetThread.size()){//check whether messageNumber is valid
+
+                if(messageNumber > 0 && messageNumber <= targetThread.totalMessageNum()){//check whether messageNumber is valid
 
                     if(userInfo.userName.equals(targetThread.getAuthorAtLine(messageNumber))){//check whether user has the right to edit
                         targetThread.editLine(messageNumber, newMessage);
@@ -533,23 +480,17 @@ public class Server extends Thread{
                 }
 
             }else{
-
                 outToClient.writeBytes("Thread " + threadTitle + " does not exist\n");
-
             }
             outToClient.writeBytes("\n"); //it tells multiple lines writing is end
-
         }catch(Exception e){
-
             System.out.println("EDT_handler crashes");
-
         }
     }
 
     // handle RMV command from the client
     public static void RMV_handler(String[] operation, UserInformation userInfo, DataOutputStream outToClient){
         try{
-
             String threadTitle = operation[1];
             if(activeThreadsMap.containsKey(threadTitle)){ // check whether thread exist
 
@@ -571,19 +512,14 @@ public class Server extends Thread{
 
             }
             outToClient.writeBytes("\n");
-
         }catch(Exception e){
-
             System.out.println("RMV_hanlder crashes");
-
         }
-        
     }
 
     // handle SHT command from the client
     public static boolean SHT_handler(String[] operation, DataOutputStream outToClient){
         try{
-
             if(operation[1].equals(adminPassword)){ // check password correct
                 // before closing all sockets, we need to delete all active threads and associated files
                 Iterator<String> itr = activeThreadsMap.keySet().iterator();
@@ -592,16 +528,6 @@ public class Server extends Thread{
                     ThreadObj curr = activeThreadsMap.get(threadTitle);
                     curr.removeThreadFile(); 
                 }
-
-                // close client socket one by one 
-                // since SHT will terminate this program directly, maybe this is optional?
-                /*
-                Iterator<Server> itr2 = activeClientsSet.iterator();
-                while(itr2.hasNext()){
-                    Server curr = itr2.next();
-                    curr.connectionSocket.close();
-                }
-                */
 
                 // close welcome socket
                 welcomeSocket.close();
@@ -612,19 +538,16 @@ public class Server extends Thread{
                 outToClient.writeBytes("\n");
                 return false;
             }
-
         }catch(Exception e){
             System.out.println("SHT_handler crashes");
             return true;
         }
-
     }
 
     // handle XIT command from the client
     // since when this command is called the command handler must finish, so always return true
     public static boolean XIT_handler(UserInformation userInfo, DataOutputStream outToClient){
         try{
-
             syncLock.lock();
             activeClientNum -= 1;
             syncLock.unlock();
@@ -634,11 +557,8 @@ public class Server extends Thread{
             }
             outToClient.writeBytes("Goodbye\n");
             outToClient.writeBytes("\n"); //it tells multiple lines writing is end
-            
         }catch(IOException e){
-
             System.out.println("XIT_handler crashes");
-
         }
         return true;
     }
@@ -690,7 +610,6 @@ public class Server extends Thread{
 
     public static void invalidCommand_handler(String command, DataOutputStream outToClient){
         try{
-
             if(!commandsSet.contains(command)){ // send usage guide only if it is in the commands set
                 System.out.println("Invalid command");
                 outToClient.writeBytes("Invalid comand\n");
@@ -743,11 +662,8 @@ public class Server extends Thread{
                 }
             }
             outToClient.writeBytes("\n"); //it tells multiple lines writing is end
-
         }catch(IOException e){
-
             System.out.println("invalid command handler crashes");
-
         }
     }
 
