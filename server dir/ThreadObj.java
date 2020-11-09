@@ -113,6 +113,9 @@ public class ThreadObj {
     public int messageNumToIndex(int messageNumber){ 
         int n = 1;
         int index = 0;
+        while(!lines.get(index).isMessage){
+            index += 1;
+        }
         while(index<lines.size() && n != messageNumber){
             if(lines.get(index).isMessage){
                 n += 1;
