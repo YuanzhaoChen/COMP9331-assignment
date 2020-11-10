@@ -4,16 +4,13 @@ import java.net.http.*;
 import java.util.Scanner;
 
 public class Client extends Thread{
-    private Socket socket;
+    private static Socket clientSocket;
     private static boolean isExit = false;
     public static boolean isShutDown = false;
 
     public static InetAddress server_ip;
     public static int server_port;
 
-    public Client(Socket s){
-        this.socket = s;
-    }
 
     public static void main(String[] args) throws Exception {
         if(args.length != 2){
@@ -28,10 +25,10 @@ public class Client extends Thread{
         server_port = Integer.parseInt(args[1]);
 
         // this is the socket gets feedback message from the server
-        Socket clientSocket = new Socket(server_ip, server_port);
+        clientSocket = new Socket(server_ip, server_port);
         DataOutputStream o1 =  new DataOutputStream(clientSocket.getOutputStream());
         o1.writeBytes("1\n");
-        Client c = new Client(clientSocket); 
+        Client c = new Client(); 
         c.start();
 
         // this is the socket to check connection with the server and detect shutdown
@@ -56,8 +53,8 @@ public class Client extends Thread{
     @Override
     public void run(){
         try{
-            DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
-            BufferedReader inFromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
+            BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
             // begin user authentication
             boolean authenticationComplete = false;
@@ -130,9 +127,9 @@ public class Client extends Thread{
             outToServer.writeBytes(operation + "\n"); // send operation to the server
             outToServer.flush();
 
-            if(operation.split(" ").length==3 && operation.substring(0,3).equals("UPD")){
+            if(operation.split(" ").length == 3 && operation.substring(0,3).equals("UPD")){
                 try{
-                    if(inFromServer.readLine().equals("OK")){
+                    if(inFromServer.readLine().equals("OK")){ // it tells this file doesn't exist on the server side, so we can upload
                         File file = new File(operation.split(" ")[2]);
 
                         long fileSize = file.length();
@@ -146,13 +143,30 @@ public class Client extends Thread{
                             outToServer.flush();
                         }
                         f.close();
-                    }else{ // readLines equals "File exists"
-                        System.out.println("File already uploaded before");
-                        return false;
                     }
-                    
                 }catch(Exception e){
                     System.out.println("Upload file crashes");
+                }
+            }
+
+            if(operation.split(" ").length == 3 && operation.substring(0,3).equals("DWN")){
+                try{
+                    if(inFromServer.readLine().equals("OK")){ // it tells the requested file exists, so we can download
+                        DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+                        OutputStream stream = new FileOutputStream(operation.split(" ")[2]);
+                        long fileSize = in.readLong();
+                        byte[] b = new byte[16*1024];
+                        int count = 0;
+                        while(fileSize>0 && (count = in.read(b,0,(int)Math.min(b.length, fileSize))) !=-1){
+                            stream.write(b,0,count);
+                            stream.flush();
+                            fileSize -= count;
+                        }
+                        stream.close();
+                        System.out.println("File download successful");
+                    }
+                }catch(Exception e){
+                    System.out.println("Download file crashes");
                 }
             }
 
